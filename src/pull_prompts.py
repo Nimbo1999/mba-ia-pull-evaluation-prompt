@@ -18,14 +18,41 @@ from utils import save_yaml, check_env_vars, print_section_header
 
 load_dotenv()
 
+LANGSMITH_REPOSITORY = "leonanluppi/bug_to_user_story_v1"
 
-def pull_prompts_from_langsmith():
-    ...
+def pull_prompts_from_langsmith(repository):
+    prompt = hub.pull(repository)
+    print(prompt)
+    return prompt
 
 
 def main():
     """Função principal"""
-    ...
+    print_section_header("Iniciando Pull de Prompts do LangSmith Prompt Hub")
+
+    required_env_vars = [
+        'LANGSMITH_ENDPOINT',
+        'LANGSMITH_API_KEY',
+        'USERNAME_LANGSMITH_HUB',
+    ]
+    if not check_env_vars(required_env_vars):
+        print("Variáveis de ambiente necessárias não estão definidas. Verifique o .env.")
+        return 1
+
+    print_section_header(f"Fazendo pull do repositório: {LANGSMITH_REPOSITORY}")
+    prompt_pull_data = pull_prompts_from_langsmith(LANGSMITH_REPOSITORY)
+
+    if not prompt_pull_data:
+        print("Falha ao obter dados do prompt.")
+        return 1
+
+    output_path = Path("prompts") / f"{LANGSMITH_REPOSITORY.split('/')[-1]}.yml"
+    if save_yaml(prompt_pull_data, output_path):
+        print_section_header(f"Prompts salvos com sucesso em: {output_path}")
+        return 0
+    else:
+        print("Falha ao salvar os prompts.")
+        return 1
 
 
 if __name__ == "__main__":
