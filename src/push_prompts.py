@@ -15,7 +15,7 @@ import sys
 from dotenv import load_dotenv
 from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
-from utils import load_yaml, check_env_vars, print_section_header
+from utils import load_yaml, check_env_vars, print_section_header, validate_prompt_structure
 
 load_dotenv()
 
@@ -59,12 +59,7 @@ def validate_prompt(prompt_data: dict) -> tuple[bool, list]:
     Returns:
         (is_valid, errors) - Tupla com status e lista de erros
     """
-    required_fields = ["system_prompt", "user_prompt", "description", "tags"]
-    errors = []
-    for field in required_fields:
-        if field not in prompt_data:
-            errors.append(f"Campo obrigatório ausente: {field}")
-    return len(errors) == 0, errors
+    return validate_prompt_structure(prompt_data)
 
 def main():
     """Função principal"""
