@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from dotenv import load_dotenv
 from langchain import hub
+from langchain_core.load import dumpd
 from utils import save_yaml, check_env_vars, print_section_header
 
 load_dotenv()
@@ -47,11 +48,12 @@ def main():
         return 1
 
     output_path = Path("prompts") / f"{LANGSMITH_REPOSITORY.split('/')[-1]}.yml"
-    if save_yaml(prompt_pull_data, output_path):
-        print_section_header(f"Prompts salvos com sucesso em: {output_path}")
+    prompt_dict = dumpd(prompt_pull_data)
+    if save_yaml(prompt_dict, output_path):
+        print_section_header(f"Prompt salvo com sucesso em: {output_path}")
         return 0
     else:
-        print("Falha ao salvar os prompts.")
+        print_section_header("Falha ao salvar o prompt.")
         return 1
 
 
