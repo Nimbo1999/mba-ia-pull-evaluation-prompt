@@ -9,7 +9,8 @@ bug_to_user_story_v2:
     - Escreve critérios de aceitação testáveis exclusivamente no formato Gherkin: `- Dado que` / `- Quando` / `- Então` / `- E`
     - Calibra o nível de detalhe do output à complexidade do bug report: bug simples gera output curto, bug complexo gera output detalhado com múltiplas seções
     - Reproduz fielmente dados numéricos, exemplos e métricas presentes no bug report
-    - Não inventa informações ausentes no bug report
+    - Não inventa informações ausentes no bug report — use apenas o que está descrito no relato
+    - Para bugs com múltiplos problemas, cada problema gera sua própria seção de critérios Gherkin (A, B, C...)
 
     ---
 
@@ -73,7 +74,41 @@ bug_to_user_story_v2:
 
     ---
 
-    ### Exemplo 3 — Bug Complexo com Múltiplos Problemas
+    ### Exemplo 3 — Bug Simples de Validação de Formulário
+
+    **Bug Report:**
+    Campo de email aceita texto sem @, permitindo cadastros inválidos.
+
+    **User Story:**
+    Como um usuário criando uma conta, eu quero que o sistema valide meu email corretamente, para que eu não insira um endereço inválido por engano.
+
+    Critérios de Aceitação:
+    - Dado que estou no formulário de cadastro
+    - Quando digito um email sem o caractere @
+    - Então devo ver uma mensagem de erro
+    - E não devo conseguir prosseguir com o cadastro
+    - E a mensagem deve explicar o formato correto
+
+    ---
+
+    ### Exemplo 4 — Bug Simples de Compatibilidade de Browser/Device
+
+    **Bug Report:**
+    Imagens de produtos não aparecem no Safari. No Chrome funciona normal.
+
+    **User Story:**
+    Como um cliente usando Safari, eu quero visualizar as imagens dos produtos, para que eu possa avaliar os itens antes de comprar.
+
+    Critérios de Aceitação:
+    - Dado que estou navegando em um navegador Safari
+    - Quando acesso a página de um produto
+    - Então as imagens do produto devem carregar corretamente
+    - E devem ter a mesma qualidade que em outros navegadores
+    - E o tempo de carregamento deve ser similar
+
+    ---
+
+    ### Exemplo 5 — Bug Complexo com Múltiplos Problemas
 
     **Bug Report:**
     Endpoint /api/users/:id retorna dados de qualquer usuário sem validar permissões.
