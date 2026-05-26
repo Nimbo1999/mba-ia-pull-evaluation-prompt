@@ -20,10 +20,11 @@ Configure o provider no arquivo .env através da variável LLM_PROVIDER.
 import os
 import sys
 import json
+from datetime import datetime
 from typing import List, Dict, Any
 from pathlib import Path
 from dotenv import load_dotenv
-from langsmith import Client
+from langsmith import Client, evaluate
 from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate
 from utils import check_env_vars, format_score, print_section_header, get_llm as get_configured_llm
@@ -178,6 +179,41 @@ def evaluate_prompt_on_example(
         }
 
 
+def make_target(prompt_template: ChatPromptTemplate, llm: Any):
+    def target(inputs: Dict[str, Any]) -> Dict[str, Any]:
+        chain = prompt_template | llm
+        response = chain.invoke(inputs)
+        return {"output": response.content}
+    return target
+
+
+def make_evaluator_f1(key: str = "f1_score"):
+    def evaluator(outputs: Dict, reference_outputs: Dict) -> Dict:
+        answer = outputs.get("output", "")
+        reference = reference_outputs.get("reference", "")
+        result = evaluate_f1_score("", answer, reference)
+        return {"key": key, "score": result["score"]}
+    return evaluator
+
+
+def make_evaluator_clarity(key: str = "clarity"):
+    def evaluator(outputs: Dict, reference_outputs: Dict) -> Dict:
+        answer = outputs.get("output", "")
+        reference = reference_outputs.get("reference", "")
+        result = evaluate_clarity("", answer, reference)
+        return {"key": key, "score": result["score"]}
+    return evaluator
+
+
+def make_evaluator_precision(key: str = "precision"):
+    def evaluator(outputs: Dict, reference_outputs: Dict) -> Dict:
+        answer = outputs.get("output", "")
+        reference = reference_outputs.get("reference", "")
+        result = evaluate_precision("", answer, reference)
+        return {"key": key, "score": result["score"]}
+    return evaluator
+
+
 def evaluate_prompt(
     prompt_name: str,
     dataset_name: str,
@@ -187,31 +223,43 @@ def evaluate_prompt(
 
     try:
         prompt_template = pull_prompt_from_langsmith(prompt_name)
-
-        examples = list(client.list_examples(dataset_name=dataset_name))
-        print(f"   Dataset: {len(examples)} exemplos")
-
         llm = get_llm()
 
-        f1_scores = []
-        clarity_scores = []
-        precision_scores = []
+        # Nome do experimento: prompt + timestamp para fácil identificação no LangSmith
+        short_name = prompt_name.split("/")[-1]
+        experiment_prefix = f"{short_name}-{datetime.now().strftime('%Y%m%d-%H%M')}"
 
-        print("   Avaliando exemplos...")
+        print(f"   Enviando experimento '{experiment_prefix}' ao LangSmith...")
 
-        for i, example in enumerate(examples, 1):
-            result = evaluate_prompt_on_example(prompt_template, example, llm)
+        results = evaluate(
+            make_target(prompt_template, llm),
+            data=dataset_name,
+            evaluators=[
+                make_evaluator_f1(),
+                make_evaluator_clarity(),
+                make_evaluator_precision(),
+            ],
+            experiment_prefix=experiment_prefix,
+            client=client,
+            max_concurrency=2,
+        )
 
-            if result["answer"]:
-                f1 = evaluate_f1_score(result["question"], result["answer"], result["reference"])
-                clarity = evaluate_clarity(result["question"], result["answer"], result["reference"])
-                precision = evaluate_precision(result["question"], result["answer"], result["reference"])
+        # Agregar scores do experimento
+        f1_scores, clarity_scores, precision_scores = [], [], []
 
-                f1_scores.append(f1["score"])
-                clarity_scores.append(clarity["score"])
-                precision_scores.append(precision["score"])
+        for i, result in enumerate(results, 1):
+            eval_results = result.get("evaluation_results", {}).get("results", [])
+            row_scores = {r.key: r.score for r in eval_results if r.score is not None}
 
-                print(f"      [{i}/{len(examples)}] F1:{f1['score']:.2f} Clarity:{clarity['score']:.2f} Precision:{precision['score']:.2f}")
+            f1 = row_scores.get("f1_score", 0.0)
+            clarity = row_scores.get("clarity", 0.0)
+            precision = row_scores.get("precision", 0.0)
+
+            f1_scores.append(f1)
+            clarity_scores.append(clarity)
+            precision_scores.append(precision)
+
+            print(f"      [{i}/{len(results)}] F1:{f1:.2f} Clarity:{clarity:.2f} Precision:{precision:.2f}")
 
         avg_f1 = sum(f1_scores) / len(f1_scores) if f1_scores else 0.0
         avg_clarity = sum(clarity_scores) / len(clarity_scores) if clarity_scores else 0.0
@@ -219,6 +267,9 @@ def evaluate_prompt(
 
         avg_helpfulness = (avg_clarity + avg_precision) / 2
         avg_correctness = (avg_f1 + avg_precision) / 2
+
+        print(f"\n   ✓ Experimento publicado: {experiment_prefix}")
+        print(f"   🔗 Acesse: https://smith.langchain.com/")
 
         return {
             "helpfulness": round(avg_helpfulness, 4),

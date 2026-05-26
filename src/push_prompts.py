@@ -14,7 +14,7 @@ import os
 import sys
 from dotenv import load_dotenv
 from langchain import hub
-from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate
 from utils import load_yaml, check_env_vars, print_section_header, validate_prompt_structure
 
 load_dotenv()
